@@ -1,9 +1,10 @@
-
+/*
+ * Do not use this @home
+ * This tool will dump a complete couchdb server to files which named .hocker
+ */
 var sys = require('sys')
 var posix = require('posix')
-//var process = require('process')
 var http = require('http')
-//var joose = require('joose')
 
 var CouchDB = function() {
    return http.createClient(5984, 'localhost') 
