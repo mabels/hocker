@@ -7,16 +7,15 @@ var posix = require('posix')
 var http = require('http')
 
 var CouchDB = function() {
-   return http.createClient(5984, 'localhost') 
+   return http.createClient(5984, '172.16.252.133') 
 }
 
 var JSONRequest = function() { }
 
 JSONRequest.prototype.request = function(url, fn, obj, self) {
-//sys.puts("ENTER:"+fn)
    this.chunks = []
    self = this
-   CouchDB().get(url).finish(function(response) {
+   obj.http.get(url).finish(function(response) {
       if (response.statusCode == 200) {
          response.setBodyEncoding('utf8')
          response.addListener('body', function(chunk) {
@@ -35,7 +34,7 @@ JSONRequest.prototype.request_body = function(url, fn, obj, self) {
 //sys.puts("request_body:"+url)
    this.body = []
    self = this
-   CouchDB().get(url).finish(function(response) {
+   obj.http.get(url).finish(function(response) {
       if (response.statusCode == 200) {
          response.addListener('body', function(chunk) {
             self.body.push(chunk)
@@ -90,6 +89,7 @@ var all_docs_reader = function(obj, data) {
 
 var Hocker = function(db) {
    this.db = db
+   this.http = CouchDB()
    var self = this
    posix.open(this.db+".hocker", process.O_WRONLY | process.O_TRUNC | process.O_CREAT, 0644).addCallback(function(fd) {
       self.file = fd
@@ -99,11 +99,13 @@ sys.puts("MADE .hocker for:"+self.file+"="+self.db)
    })
 }
 
-var couchdb = CouchDB()
+new Hocker('rawpictures')
+/*
 var all_dbs = new JSONRequest() 
 all_dbs.request('/_all_dbs', function(dbs) {
    for (var i = dbs.length-1; i >= 0; --i) {
       new Hocker(dbs[i])
    }
-})
+}, {http: CouchDB()} )
+*/
 
