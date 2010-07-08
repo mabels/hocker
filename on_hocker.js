@@ -46,7 +46,7 @@ BufferReader.prototype.reader = function(err, bytes_read, self) {
 
 var OnHocker = function(fname, host, port) {
    this.fname = fname
-   this.db = "hocker_"+fname.replace(/\.hocker$/,'')
+   this.db = /* "hocker_"+*/ fname.replace(/\.hocker$/,'')
    this.cnt = 0
    var self = this
 sys.puts("OnHocker:START:CREATEDB:"+self.db)
