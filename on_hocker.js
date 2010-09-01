@@ -12,7 +12,14 @@ var buffer = require('buffer').Buffer
 var CouchDB = function(host, port) {
    if (port == null) {port = 5984}
    if (host == null) {host = 'localhost'}
-   return http.createClient(port, host)
+   this.port = port
+   this.host = host
+}
+
+CouchDB.prototype = {
+  conn : function() { 
+    return http.createClient(this.port, this.host)
+  }    
 }
 
 var BufferReader = function(fd) {
@@ -44,29 +51,31 @@ BufferReader.prototype.reader = function(err, bytes_read, self) {
    }
 }
 
-var OnHocker = function(fname, host, port) {
+var OnHocker = function(fname, couchdb) {
    this.fname = fname
    this.db = /* "hocker_"+*/ fname.replace(/\.hocker$/,'')
    this.cnt = 0
+   this.couchdb = couchdb
    var self = this
 sys.puts("OnHocker:START:CREATEDB:"+self.db)
-   var req = CouchDB(host, port).request('DELETE','/'+self.db+'/', { 'Content-Length': 0 })
+   var conn = couchdb.conn()
+   var req = conn.request('DELETE','/'+self.db+'/', { 'Content-Length': 0 })
    req.write('')
    req.addListener('response',function() {
 sys.puts("CREATE DB. " + self.db)
-      req = CouchDB().request('PUT','/'+self.db+'/', { 'Content-Length': 0 })
+      req = conn.request('PUT','/'+self.db+'/', { 'Content-Length': 0 })
       req.write('')
       req.addListener('response',function() {
 //sys.puts("OnHocker:START:OPEN:"+self.fname)
          posix.open(self.fname, process.O_RDONLY, 0644, function(err, fd) {
 //sys.puts("OPENED:"+self.fd)
-            self.put_object(fd)
+            self.put_object(fd, conn)
          })
       }).end()
    }).end()
 }
 
-OnHocker.prototype.put_object = function(fd, self) {
+OnHocker.prototype.put_object = function(fd, conn, self) {
    self = this
    new BufferReader(fd).read(new buffer(16), function(length) {
       if (length == null) { 
@@ -83,14 +92,14 @@ sys.puts('ID:'+id)
                body = JSON.parse(body)
                delete body._rev
                body = JSON.stringify(body)
-               req = CouchDB().request('PUT','/'+self.db+'/'+id, {'Content-Length': body.length.toString()})
+               req = conn.request('PUT','/'+self.db+'/'+id, {'Content-Length': body.length.toString()})
                sys.puts('Body Length: ' + body.length + 'Buffer Length: ' +length.toString())
                req.write(body, 'binary');
                req.addListener('response', function(response) {
 sys.puts ('STATUS ' + response.statusCode)
 //sys.puts('DONE:'+length+":"+body)
                   self.cnt += 1
-                  self.put_object(fd)
+                  self.put_object(fd, conn)
                }).end()
             })
          })
@@ -98,8 +107,8 @@ sys.puts ('STATUS ' + response.statusCode)
    })
 }
 
-var couchdb = CouchDB()
+var couchdb = new CouchDB(process.ARGV[2],process.ARGV[3])
 for (var i = process.ARGV.length-1; i >= 4; --i) {
-   new OnHocker(process.ARGV[i],process.ARGV[2],process.ARGV[3]);
+   new OnHocker(process.ARGV[i], couchdb)
 }
 
