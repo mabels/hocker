@@ -1,0 +1,21 @@
+  The Hocker the german-word for stool. So it's a tool of the couch(db) chain.
+  Hocker give you a logical backup of a couchdb so the history and other 
+  references will be destroyed. I wrote the programm to remove reference to 
+  deleted documents which are not removed by the compaction. I have a database
+  where around 30000 documents will be finaly in but in transit there are around 
+  10Million documents in. These db was around 50times as big so i had to do something.
+   
+  How it works:
+
+  off_hocker stores the content of a couchdb in a files suffixed with .hocker
+  node off_hocker.js <couch-ip> <couch-port> [database-names]
+
+  on_hocker stores the backup in the specified databases
+  node on_hocker.js <couch-ip> <couch-port> [hocker-files]
+
+  Feel free, there are some special extentions for demaged attaments which are
+  appends on old couchdb version.
+
+  Specical thx:
+    SinnerSchrader
+    nikzaf
