@@ -7,7 +7,7 @@
 var sys = require('sys')
 var posix = require('fs')
 var http = require('http')
-var buffer = require('buffer').Buffer
+//var buffer = require('buffer').Buffer
 
 var CouchDB = function(host, port) {
    if (port == null) {port = 5984}
@@ -63,7 +63,7 @@ sys.puts("OnHocker:START:CREATEDB:"+self.db)
    req.write('')
    req.addListener('response',function() {
 sys.puts("CREATE DB. " + self.db)
-      req = conn.request('PUT','/'+self.db+'/', { 'Content-Length': 0 })
+      req = conn.request('PUT','/'+self.db+'/', { 'Content-Length': 0, 'Content-Type': 'application/json' })
       req.write('')
       req.addListener('response',function() {
 //sys.puts("OnHocker:START:OPEN:"+self.fname)
@@ -77,30 +77,34 @@ sys.puts("CREATE DB. " + self.db)
 
 OnHocker.prototype.put_object = function(fd, conn, self) {
    self = this
-   new BufferReader(fd).read(new buffer(16), function(length) {
+   new BufferReader(fd).read(new Buffer(16), function(length) {
       if (length == null) { 
          sys.puts('COMPLETED:'+self.cnt+":"+self.db)
          return 
       }
 sys.puts("OnHocker.prototype.put_object:"+this.done_read+" : "+length)
-      this.read(new buffer(parseInt(length,10)), function(id) {
+      this.read(new Buffer(parseInt(length,10)), function(id) {
 sys.puts('ID:'+id)
-         this.read(new buffer(16), function(length) {
+         this.read(new Buffer(16), function(length) {
             length = parseInt(length,10)
-            this.read(new buffer(length), function(body) {
+            this.read(new Buffer(length), function(body) {
 //sys.puts('PUT:'+length+":"+body)
                body = JSON.parse(body)
                delete body._rev
                body = JSON.stringify(body)
-               req = conn.request('PUT','/'+self.db+'/'+id, {'Content-Length': body.length.toString()})
+               req = conn.request('PUT','/'+self.db+'/'+id, {
+                    'Content-Length': Buffer.byteLength(body, 'utf-8').toString(),
+                    'Content-Type': 'application/json'})
                sys.puts('Body Length: ' + body.length + 'Buffer Length: ' +length.toString())
-               req.write(body, 'binary');
+//console.log(body)
+               req.write(body, 'utf-8');
                req.addListener('response', function(response) {
 sys.puts ('STATUS ' + response.statusCode)
 //sys.puts('DONE:'+length+":"+body)
                   self.cnt += 1
                   self.put_object(fd, conn)
-               }).end()
+               })
+               req.end()
             })
          })
       })
