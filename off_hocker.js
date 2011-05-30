@@ -12,7 +12,13 @@ var _ = require('./underscore')._
 var CouchDB = function(host, port) {
    if (port == null) {port = 5984}
    if (host == null) {host = 'localhost'}
-   return http.createClient(port, host)
+   var ret = new (function() {})();
+   ret.host = host;
+   ret.port = port;
+   ret.http = http;
+   ret.request = function() { return this.http.request.apply(this.http, arguments); }
+   return ret;
+//   return http.createClient(port, host)
 }
 
 
@@ -26,6 +32,7 @@ BufferWriter.prototype.write = function(buffer, fn, self) {
    this.to_write = buffer.length
    this.fn = fn
    self = this
+//console.log(this.fd+":"+this.written+":"+buffer.length);
    posix.write(this.fd, buffer, this.written, buffer.length, null, function(error,written) { self.writer(error, written) })
 }
 
@@ -46,8 +53,13 @@ JSONRequest.prototype.request = function(url, fn, obj, self) {
 //sys.puts("URL: "+url+" FN: "+fn)
    this.chunks = []
    self = this
-   sys.puts('URL_: ' + url)
-   obj.http.request('GET',url).addListener('response',function(response) {
+//   sys.puts('URL_: ' + url)
+   obj.http.request({
+     method: 'GET',
+     path: url,
+     host: obj.http.host,
+     port: obj.http.port
+   }, function(response) {
       if (response.statusCode == 200) {
          //sys.puts ('RESPONSE CODE ' + response.statusCode)
          response.setEncoding('utf8')
@@ -69,10 +81,15 @@ JSONRequest.prototype.request_body = function(url, fn, obj, self) {
 //sys.puts("request_body:"+url)
    this.body = []
    self = this
-   sys.puts('URL_: ' + url)
-   obj.http.request('GET',url).addListener('response',function(response) {
+//   sys.puts('URL_: ' + url)
+   obj.http.request({
+     method: 'GET',
+     path: url,
+     host: obj.http.host,
+     port: obj.http.port
+   }, function(response) {
       if (response.statusCode == 200) {
-         sys.puts ('SUCCESS ' + response.statusCode + ' ' + url)
+//         sys.puts ('SUCCESS ' + response.statusCode + ' ' + url)
          response.addListener('data', function(chunk) {
             self.body.push(chunk)
          })
@@ -203,11 +220,15 @@ var Hocker = function(db,host,port) {
    this.db = db
    this.http = CouchDB(host,port)
    var self = this
-   posix.open(this.db+".hocker", process.O_WRONLY | process.O_TRUNC | process.O_CREAT, 0644, function(err, fd) {
+   posix.open(this.db+".hocker", "w", 0644, function(err, fd) {
+      if (err) {
+        sys.puts("OPEN:FAILED:"+this.db+":"+err);
+        return;
+      }
       self.file = fd
       self.err = err
-sys.puts("MADE .hocker for: " + self.err +" "+self.file+"="+self.db)
       self.cnt = 0
+      sys.puts("MADE .hocker for: " + self.err +" "+self.file+"="+self.db)
       new JSONRequest().request('/'+self.db+'/_all_docs?limit=1000', all_docs_reader, self)
    })
 }

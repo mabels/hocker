@@ -7,6 +7,7 @@
 var sys = require('sys')
 var posix = require('fs')
 var http = require('http')
+var util = require('util')
 //var buffer = require('buffer').Buffer
 
 var CouchDB = function(host, port) {
@@ -18,7 +19,22 @@ var CouchDB = function(host, port) {
 
 CouchDB.prototype = {
   conn : function() { 
-    return http.createClient(this.port, this.host)
+    var self = this;
+    return { 
+              request: function(method, url, opts, fn) {
+                var n = {};
+                for (var i in opts) {
+                  n[i] = opts[i];
+                }
+                n.method = method;
+                n.port = self.port;
+                n.host = self.host;
+                n.path = url;
+//console.log(method+":"+url+":"+opts+":"+util.inspect(n));
+                return http.request(n, fn);
+              }
+           };
+    return http;
   }    
 }
 
@@ -63,15 +79,16 @@ sys.puts("OnHocker:START:CREATEDB:"+self.db)
    req.write('')
    req.addListener('response',function() {
 sys.puts("CREATE DB. " + self.db)
-      req = conn.request('PUT','/'+self.db+'/', { 'Content-Length': 0, 'Content-Type': 'application/json' })
+      req = conn.request('PUT','/'+self.db+'/', { 'Content-Length': 0, 'Content-Type': 'application/json' },
+        function() {
+  //sys.puts("OnHocker:START:OPEN:"+self.fname)
+           posix.open(self.fname, "r", function(err, fd) {
+  //sys.puts("OPENED:"+self.fd)
+              self.put_object(fd, conn)
+           })
+        });
       req.write('')
-      req.addListener('response',function() {
-//sys.puts("OnHocker:START:OPEN:"+self.fname)
-         posix.open(self.fname, process.O_RDONLY, 0644, function(err, fd) {
-//sys.puts("OPENED:"+self.fd)
-            self.put_object(fd, conn)
-         })
-      }).end()
+      req.end()
    }).end()
 }
 
@@ -94,16 +111,16 @@ sys.puts('ID:'+id)
                body = JSON.stringify(body)
                req = conn.request('PUT','/'+self.db+'/'+id, {
                     'Content-Length': Buffer.byteLength(body, 'utf-8').toString(),
-                    'Content-Type': 'application/json'})
+                    'Content-Type': 'application/json'},
+                    function(response) {
+sys.puts ('STATUS ' + response.statusCode)
+//sys.puts('DONE:'+length+":"+body)
+                      self.cnt += 1
+                      self.put_object(fd, conn)
+                    })
                sys.puts('Body Length: ' + body.length + 'Buffer Length: ' +length.toString())
 //console.log(body)
                req.write(body, 'utf-8');
-               req.addListener('response', function(response) {
-sys.puts ('STATUS ' + response.statusCode)
-//sys.puts('DONE:'+length+":"+body)
-                  self.cnt += 1
-                  self.put_object(fd, conn)
-               })
                req.end()
             })
          })
